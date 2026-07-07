@@ -1,5 +1,5 @@
 import sys
-
+import shutil
 
 def main():
     while True:
@@ -10,10 +10,13 @@ def main():
         elif command.startswith("echo "):
             print(command[5:])
         elif command.startswith("type "):
-            if command[5:] in ["echo", "exit", "type"]:
-                print(f"{command[5:]} is a shell builtin")
+            subject = command[5:]
+            if subject in ["echo", "exit", "type"]:
+                print(f"{subject} is a shell builtin")
+            elif path := shutil.which(subject):
+                print(f"{subject} is {path}")
             else:
-                print(f"{command[5:]}: not found")
+                print(f"{subject}: not found")
         else:
             print(f"{command}: command not found")
 
