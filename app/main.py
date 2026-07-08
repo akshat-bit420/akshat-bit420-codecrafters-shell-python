@@ -1,69 +1,36 @@
-import os
 import sys
+import shutil
 import subprocess
 
-VALID_COMMANDS = set({"exit", "echo", "type"})
-
-
-def find_executable(command: str) -> str | None:
-    path_env = os.environ.get("PATH")
-    if not path_env:
-        return None
-
-    for directory in path_env.split(os.pathsep):
-        candidate = os.path.join(directory, command)
-        if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
-            return candidate
-
-    return None
-
-
-def main() -> None:
+def main():
     while True:
         sys.stdout.write("$ ")
         sys.stdout.flush()
-        try:
-            line = input()
-        except EOFError:
+        command = input()
+        if command == "exit":
             break
-
-        if not line.strip():
-            continue
-
-        parts = line.split()
-        cmd = parts[0]
-
-        if cmd == "exit":
-            sys.exit(0)
-
-        elif cmd == "echo":
-            print(" ".join(parts[1:]))
-
-        elif cmd == "type":
-            if len(parts) < 2:
-                continue
-
-            target = parts[1]
-            if target in VALID_COMMANDS:
-                print(f"{target} is a shell builtin")
+        elif command.startswith("echo "):
+            print(command[5:])
+        elif command.startswith("type "):
+            subject = command[5:]
+            if subject in ["echo", "exit", "type"]:
+                print(f"{subject} is a shell builtin")
+            elif path := shutil.which(subject):
+                print(f"{subject} is {path}")
             else:
-                found = find_executable(target)
-                if found:
-                    print(f"{target} is {found}")
-                else:
-                    print(f"{target}: not found")
-
+                print(f"{subject}: not found")
         else:
-            found = find_executable(cmd)
-            if not found:
+            parts = command.split()
+            if not parts:
+                continue
+            cmd = parts[0]
+            path = shutil.which(cmd)
+            if not path:
                 print(f"{cmd}: command not found")
             else:
-                subprocess.run([found] + parts[1:])
-    else:
-        sys.stdout.flush()
-        subprocess.run([cmd] + parts[1:], executable=found)
-        sys.stdout.flush()
-
+                sys.stdout.flush()
+                subprocess.run(parts, executable=path)
+                sys.stdout.flush()
 
 if __name__ == "__main__":
     main()
