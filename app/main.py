@@ -21,7 +21,11 @@ def find_executable(command: str) -> str | None:
 def main() -> None:
     while True:
         sys.stdout.write("$ ")
-        line = input()
+        sys.stdout.flush()
+        try:
+            line = input()
+        except EOFError:
+            break
 
         if not line.strip():
             continue
