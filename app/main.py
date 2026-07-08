@@ -59,6 +59,10 @@ def main() -> None:
                 print(f"{cmd}: command not found")
             else:
                 subprocess.run([found] + parts[1:])
+    else:
+        sys.stdout.flush()
+        subprocess.run([cmd] + parts[1:], executable=found)
+        sys.stdout.flush()
 
 
 if __name__ == "__main__":
