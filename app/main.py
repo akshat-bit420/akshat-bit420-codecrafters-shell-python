@@ -52,12 +52,9 @@ def main() -> None:
         else:
             found = find_executable(cmd)
             if not found:
-                print(f"{line}: command not found")
+                print(f"{cmd}: command not found")
             else:
-                res = subprocess.run(args=parts)
-                sys.exit(res.returncode)
-    else:
-        res = subprocess.run(args=parts)
+                subprocess.run([found] + parts[1:])
 
 
 if __name__ == "__main__":
