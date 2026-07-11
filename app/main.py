@@ -28,8 +28,8 @@ def main():
                     os.chdir(target_path)
                 except FileNotFoundError:
                     print(f"cd: {target_path}: No such file or directory") 
-                except Exception:
-                    print(f"cd: {target_path}: No such file or directory")
+                except Exception as e:
+                    print(f"cd: error: {e}")
                 continue                      
         elif command.startswith("type "):
              subject = command[5:]
