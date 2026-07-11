@@ -8,11 +8,14 @@ def parse_argument(cmd_string):
     args = []
     current_args = ""
     in_single_quote = False
+    in_double_quote = False
 
     for char in cmd_string:
-        if char == "'":
+        if char == "'" and not in_double_quote:
             in_single_quote = not in_single_quote
-        elif char == " " and not in_single_quote:   
+        elif char == '"' and not in_single_quote:
+            in_double_quote = not in_double_quote
+        elif char == " " and not in_single_quote and not in_double_quote:       
             if current_args:
                 args.append(current_args)
                 current_args = ""
