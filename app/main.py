@@ -10,7 +10,8 @@ def main():
         sys.stdout.write("$ ")
         sys.stdout.flush()
         command = input()
-        prog = command.split()[0]
+        parts = command.split()
+        prog = parts[0]
         if command == "pwd":
              print(os.getcwd())
              continue
@@ -20,16 +21,18 @@ def main():
              print(command[5:])
              
         elif command.startswith("cd ") or command == "cd":
-                if len(prog) > 1:
-                    target_path = command.split(maxsplit=1)[1]
+                if len(parts) > 1:
+                    target_path = parts[1]
+                    if target_path == "~":
+                        target_path = os.getenv("HOME")
                 else:
-                    target_path = os.path.expanduser("~")
+                    target_path = os.getenv("HOME")
                 try:
                     os.chdir(target_path)
-                except FileNotFoundError:
+                except (FileNotFoundError, TypeError):
                     print(f"cd: {target_path}: No such file or directory") 
-                except Exception as e:
-                    print(f"cd: error: {e}")
+                except Exception:
+                    print(f"cd: {target_path}: No such file or directory")
                 continue                      
         elif command.startswith("type "):
              subject = command[5:]
