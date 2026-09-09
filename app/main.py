@@ -1,3 +1,5 @@
+# me trying to build my own shell, I like to suffer
+
 import os
 import sys
 import shutil
