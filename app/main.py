@@ -5,22 +5,41 @@ import subprocess
 from subprocess import run
 
 def parse_argument(cmd_string):
+
     args = []
     current_args = ""
+
     in_single_quote = False
     in_double_quote = False
 
-    for char in cmd_string:
+    i = 0
+
+    while i < len(cmd_string):
+
+        char = cmd_string[i]
+
+        # Backslash outside quotes
+        if char == "\\" and not in_single_quote and not in_double_quote:
+            if i + 1 < len(cmd_string):
+                current_args += cmd_string[i + 1]
+                i += 2
+                continue
+
         if char == "'" and not in_double_quote:
             in_single_quote = not in_single_quote
+
         elif char == '"' and not in_single_quote:
             in_double_quote = not in_double_quote
-        elif char == " " and not in_single_quote and not in_double_quote:       
+
+        elif char == " " and not in_single_quote and not in_double_quote:
             if current_args:
                 args.append(current_args)
                 current_args = ""
+
         else:
             current_args += char
+
+        i += 1
 
     if current_args:
         args.append(current_args)
