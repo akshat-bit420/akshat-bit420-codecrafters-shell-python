@@ -25,12 +25,31 @@ def parse_argument(cmd_string):
                 i += 2
                 continue
 
+        # Backslash inside double quotes
+        elif char == "\\" and in_double_quote:
+            if i + 1 < len(cmd_string):
+                next_char = cmd_string[i + 1]
+
+                # Inside double quotes, only \ and " are escaped
+                if next_char == "\\" or next_char == '"':
+                    current_args += next_char
+                    i += 2
+                    continue
+
+                # Otherwise, keep the backslash literally
+                current_args += char
+                i += 1
+                continue
+
+        # Single quote
         if char == "'" and not in_double_quote:
             in_single_quote = not in_single_quote
 
+        # Double quote
         elif char == '"' and not in_single_quote:
             in_double_quote = not in_double_quote
 
+        # Space outside quotes
         elif char == " " and not in_single_quote and not in_double_quote:
             if current_args:
                 args.append(current_args)
