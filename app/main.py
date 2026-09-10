@@ -69,62 +69,128 @@ def parse_argument(cmd_string):
 
 
 def main():
-     built_in_commands = ["echo", "exit", "type", "pwd", "cd"]
-     while True:
+    built_in_commands = ["echo", "exit", "type", "pwd", "cd"]
+
+    while True:
         sys.stdout.write("$ ")
         sys.stdout.flush()
+
         command = input()
         parts = parse_argument(command)
+
         if not parts:
             continue
+
+        # Handle output redirection
+        output_file = None
+
+        if ">" in parts:
+            redirect_index = parts.index(">")
+            output_file = parts[redirect_index + 1]
+            parts = parts[:redirect_index]
+
+        elif "1>" in parts:
+            redirect_index = parts.index("1>")
+            output_file = parts[redirect_index + 1]
+            parts = parts[:redirect_index]
+
+        if not parts:
+            continue
+
         prog = parts[0]
-        
-        # 1. Switched to 'prog == "pwd"'
+
+        if output_file:
+            output = open(output_file, "w")
+        else:
+            output = sys.stdout
+
+        # 1. pwd
         if prog == "pwd":
-             print(os.getcwd())
-             continue
-             
-        # 2. Switched to 'prog == "exit"'
+            print(os.getcwd(), file=output)
+            if output_file:
+                output.close()
+            continue
+
+        # 2. exit
         elif prog == "exit":
-             break
-             
+            if output_file:
+                output.close()
+            break
+
+        # 3. echo
         elif prog == "echo":
-            # 3. Fixed '' to ' ' to preserve space between separate words
-            print(' '.join(parts[1:]))
-             
-        # 4. Switched to 'prog == "cd"'
+            print(' '.join(parts[1:]), file=output)
+            if output_file:
+                output.close()
+            continue
+
+        # 4. cd
         elif prog == "cd":
-                if len(parts) > 1:
-                    target_path = parts[1]
-                    if target_path == "~":
-                        target_path = os.getenv("HOME")
-                else:
+            if len(parts) > 1:
+                target_path = parts[1]
+
+                if target_path == "~":
                     target_path = os.getenv("HOME")
-                try:
-                    os.chdir(target_path)
-                except (FileNotFoundError, TypeError):
-                    print(f"cd: {target_path}: No such file or directory") 
-                except Exception:
-                    print(f"cd: {target_path}: No such file or directory")
-                continue                      
-                
+            else:
+                target_path = os.getenv("HOME")
+
+            try:
+                os.chdir(target_path)
+            except (FileNotFoundError, TypeError):
+                print(f"cd: {target_path}: No such file or directory")
+            except Exception:
+                print(f"cd: {target_path}: No such file or directory")
+
+            if output_file:
+                output.close()
+
+            continue
+
+        # 5. type
         elif prog == "type":
             if len(parts) > 1:
                 subject = parts[1]
+
                 if subject in ["echo", "exit", "type", "pwd", "cd"]:
-                    print(f"{subject} is a shell builtin")
+                    print(f"{subject} is a shell builtin", file=output)
+
                 elif path := shutil.which(subject):
-                    print(f"{subject} is {path}")
+                    print(f"{subject} is {path}", file=output)
+
                 else:
-                    print(f"{subject}: not found")
+                    print(f"{subject}: not found", file=output)
+
+            if output_file:
+                output.close()
+
+            continue
+
+        # External commands
         else:
             path = shutil.which(prog)
+
             if not path:
                 print(f"{prog}: command not found")
+
             else:
                 sys.stdout.flush()
-                subprocess.run(parts, executable=path)
+
+                if output_file:
+                    subprocess.run(
+                        parts,
+                        executable=path,
+                        stdout=output
+                    )
+                else:
+                    subprocess.run(
+                        parts,
+                        executable=path
+                    )
+
                 sys.stdout.flush()
+
+        if output_file:
+            output.close()
 
 if __name__ == "__main__":
      main()
