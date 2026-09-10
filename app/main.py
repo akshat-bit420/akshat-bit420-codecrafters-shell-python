@@ -69,9 +69,11 @@ def parse_argument(cmd_string):
 
 
 def main():
+
     built_in_commands = ["echo", "exit", "type", "pwd", "cd"]
 
     while True:
+
         sys.stdout.write("$ ")
         sys.stdout.flush()
 
@@ -81,110 +83,161 @@ def main():
         if not parts:
             continue
 
-        # Check for output/error redirection
         output_file = None
         error_file = None
 
-        if ">" in parts:
+        output_mode = "w"
+
+        # Output redirection
+        if ">>" in parts:
             redirect_index = parts.index(">")
             output_file = parts[redirect_index + 1]
+            output_mode = "a"
+            parts = parts[:redirect_index]
+
+        elif "1>>" in parts:
+            redirect_index = parts.index("1>")
+            output_file = parts[redirect_index + 1]
+            output_mode = "a"
+            parts = parts[:redirect_index]
+
+        elif ">" in parts:
+            redirect_index = parts.index(">")
+            output_file = parts[redirect_index + 1]
+            output_mode = "w"
             parts = parts[:redirect_index]
 
         elif "1>" in parts:
             redirect_index = parts.index("1>")
             output_file = parts[redirect_index + 1]
+            output_mode = "w"
             parts = parts[:redirect_index]
 
-        elif "2>" in parts:
+        # Error redirection
+        if "2>" in parts:
             redirect_index = parts.index("2>")
             error_file = parts[redirect_index + 1]
             parts = parts[:redirect_index]
 
+        if not parts:
+            continue
+
         prog = parts[0]
 
-        # Decide where stdout goes
+        # Decide stdout
         if output_file:
-            output = open(output_file, "w")
+            output = open(output_file, output_mode)
         else:
             output = sys.stdout
 
-        # Decide where stderr goes
+        # Decide stderr
         if error_file:
             error_output = open(error_file, "w")
         else:
             error_output = sys.stderr
 
+        # -------------------------
         # pwd
+        # -------------------------
         if prog == "pwd":
-            print(os.getcwd(), file=output)
-            continue
 
+            print(os.getcwd(), file=output)
+
+        # -------------------------
         # exit
+        # -------------------------
         elif prog == "exit":
+
+            if output_file:
+                output.close()
+
+            if error_file:
+                error_output.close()
+
             break
 
+        # -------------------------
         # echo
+        # -------------------------
         elif prog == "echo":
-            print(' '.join(parts[1:]), file=output)
 
+            print(" ".join(parts[1:]), file=output)
+
+        # -------------------------
         # cd
+        # -------------------------
         elif prog == "cd":
+
             if len(parts) > 1:
                 target_path = parts[1]
 
                 if target_path == "~":
                     target_path = os.getenv("HOME")
+
             else:
                 target_path = os.getenv("HOME")
 
             try:
                 os.chdir(target_path)
+
             except (FileNotFoundError, TypeError):
                 print(
                     f"cd: {target_path}: No such file or directory",
                     file=error_output
                 )
+
             except Exception:
                 print(
                     f"cd: {target_path}: No such file or directory",
                     file=error_output
                 )
 
-            continue
-
+        # -------------------------
         # type
+        # -------------------------
         elif prog == "type":
+
             if len(parts) > 1:
+
                 subject = parts[1]
 
                 if subject in built_in_commands:
+
                     print(
                         f"{subject} is a shell builtin",
                         file=output
                     )
 
                 elif path := shutil.which(subject):
+
                     print(
                         f"{subject} is {path}",
                         file=output
                     )
 
                 else:
+
                     print(
                         f"{subject}: not found",
                         file=error_output
                     )
 
+        # -------------------------
         # External command
+        # -------------------------
         else:
+
             path = shutil.which(prog)
 
             if not path:
+
                 print(
                     f"{prog}: command not found",
                     file=error_output
                 )
+
             else:
+
                 sys.stdout.flush()
 
                 subprocess.run(
@@ -196,12 +249,15 @@ def main():
 
                 sys.stdout.flush()
 
-        # Close files that we opened
+        # -------------------------
+        # Close redirected files
+        # -------------------------
         if output_file:
             output.close()
 
         if error_file:
             error_output.close()
+
 
 if __name__ == "__main__":
      main()
