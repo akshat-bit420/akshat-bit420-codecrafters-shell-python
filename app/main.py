@@ -81,8 +81,9 @@ def main():
         if not parts:
             continue
 
-        # Handle output redirection
+        # Check for output/error redirection
         output_file = None
+        error_file = None
 
         if ">" in parts:
             redirect_index = parts.index(">")
@@ -94,37 +95,39 @@ def main():
             output_file = parts[redirect_index + 1]
             parts = parts[:redirect_index]
 
-        if not parts:
-            continue
+        elif "2>" in parts:
+            redirect_index = parts.index("2>")
+            error_file = parts[redirect_index + 1]
+            parts = parts[:redirect_index]
 
         prog = parts[0]
 
+        # Decide where stdout goes
         if output_file:
             output = open(output_file, "w")
         else:
             output = sys.stdout
 
-        # 1. pwd
+        # Decide where stderr goes
+        if error_file:
+            error_output = open(error_file, "w")
+        else:
+            error_output = sys.stderr
+
+        # pwd
         if prog == "pwd":
             print(os.getcwd(), file=output)
-            if output_file:
-                output.close()
             continue
 
-        # 2. exit
+        # exit
         elif prog == "exit":
-            if output_file:
-                output.close()
             break
 
-        # 3. echo
+        # echo
         elif prog == "echo":
             print(' '.join(parts[1:]), file=output)
-            if output_file:
-                output.close()
-            continue
 
-        # 4. cd
+        # cd
         elif prog == "cd":
             if len(parts) > 1:
                 target_path = parts[1]
@@ -137,60 +140,68 @@ def main():
             try:
                 os.chdir(target_path)
             except (FileNotFoundError, TypeError):
-                print(f"cd: {target_path}: No such file or directory")
+                print(
+                    f"cd: {target_path}: No such file or directory",
+                    file=error_output
+                )
             except Exception:
-                print(f"cd: {target_path}: No such file or directory")
-
-            if output_file:
-                output.close()
+                print(
+                    f"cd: {target_path}: No such file or directory",
+                    file=error_output
+                )
 
             continue
 
-        # 5. type
+        # type
         elif prog == "type":
             if len(parts) > 1:
                 subject = parts[1]
 
-                if subject in ["echo", "exit", "type", "pwd", "cd"]:
-                    print(f"{subject} is a shell builtin", file=output)
+                if subject in built_in_commands:
+                    print(
+                        f"{subject} is a shell builtin",
+                        file=output
+                    )
 
                 elif path := shutil.which(subject):
-                    print(f"{subject} is {path}", file=output)
+                    print(
+                        f"{subject} is {path}",
+                        file=output
+                    )
 
                 else:
-                    print(f"{subject}: not found", file=output)
+                    print(
+                        f"{subject}: not found",
+                        file=error_output
+                    )
 
-            if output_file:
-                output.close()
-
-            continue
-
-        # External commands
+        # External command
         else:
             path = shutil.which(prog)
 
             if not path:
-                print(f"{prog}: command not found")
-
+                print(
+                    f"{prog}: command not found",
+                    file=error_output
+                )
             else:
                 sys.stdout.flush()
 
-                if output_file:
-                    subprocess.run(
-                        parts,
-                        executable=path,
-                        stdout=output
-                    )
-                else:
-                    subprocess.run(
-                        parts,
-                        executable=path
-                    )
+                subprocess.run(
+                    parts,
+                    executable=path,
+                    stdout=output,
+                    stderr=error_output
+                )
 
                 sys.stdout.flush()
 
+        # Close files that we opened
         if output_file:
             output.close()
+
+        if error_file:
+            error_output.close()
 
 if __name__ == "__main__":
      main()
