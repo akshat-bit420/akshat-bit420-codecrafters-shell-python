@@ -91,13 +91,13 @@ def main():
         # Output redirection
         if ">>" in parts:
             redirect_index = parts.index(">>")
-            output_file = parts[redirect_index - 1]
+            output_file = parts[redirect_index + 1]
             output_mode = "a"
             parts = parts[:redirect_index]
 
         elif "1>>" in parts:
             redirect_index = parts.index("1>>")
-            output_file = parts[redirect_index - 1]
+            output_file = parts[redirect_index + 1]
             output_mode = "a"
             parts = parts[:redirect_index]
 
