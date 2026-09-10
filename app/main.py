@@ -67,7 +67,6 @@ def parse_argument(cmd_string):
 
     return args
 
-
 def main():
 
     built_in_commands = ["echo", "exit", "type", "pwd", "cd"]
@@ -87,8 +86,12 @@ def main():
         error_file = None
 
         output_mode = "w"
+        error_mode = "w"
 
+        # -------------------------
         # Output redirection
+        # -------------------------
+
         if ">>" in parts:
             redirect_index = parts.index(">>")
             output_file = parts[redirect_index + 1]
@@ -113,10 +116,20 @@ def main():
             output_mode = "w"
             parts = parts[:redirect_index]
 
+        # -------------------------
         # Error redirection
-        if "2>" in parts:
+        # -------------------------
+
+        if "2>>" in parts:
+            redirect_index = parts.index("2>>")
+            error_file = parts[redirect_index + 1]
+            error_mode = "a"
+            parts = parts[:redirect_index]
+
+        elif "2>" in parts:
             redirect_index = parts.index("2>")
             error_file = parts[redirect_index + 1]
+            error_mode = "w"
             parts = parts[:redirect_index]
 
         if not parts:
@@ -124,28 +137,39 @@ def main():
 
         prog = parts[0]
 
-        # Decide stdout
+        # -------------------------
+        # Open stdout
+        # -------------------------
+
         if output_file:
             output = open(output_file, output_mode)
         else:
             output = sys.stdout
 
-        # Decide stderr
+        # -------------------------
+        # Open stderr
+        # -------------------------
+
         if error_file:
-            error_output = open(error_file, "w")
+            error_output = open(error_file, error_mode)
         else:
             error_output = sys.stderr
 
         # -------------------------
         # pwd
         # -------------------------
+
         if prog == "pwd":
 
-            print(os.getcwd(), file=output)
+            print(
+                os.getcwd(),
+                file=output
+            )
 
         # -------------------------
         # exit
         # -------------------------
+
         elif prog == "exit":
 
             if output_file:
@@ -159,13 +183,18 @@ def main():
         # -------------------------
         # echo
         # -------------------------
+
         elif prog == "echo":
 
-            print(" ".join(parts[1:]), file=output)
+            print(
+                " ".join(parts[1:]),
+                file=output
+            )
 
         # -------------------------
         # cd
         # -------------------------
+
         elif prog == "cd":
 
             if len(parts) > 1:
@@ -178,15 +207,18 @@ def main():
                 target_path = os.getenv("HOME")
 
             try:
+
                 os.chdir(target_path)
 
             except (FileNotFoundError, TypeError):
+
                 print(
                     f"cd: {target_path}: No such file or directory",
                     file=error_output
                 )
 
             except Exception:
+
                 print(
                     f"cd: {target_path}: No such file or directory",
                     file=error_output
@@ -195,6 +227,7 @@ def main():
         # -------------------------
         # type
         # -------------------------
+
         elif prog == "type":
 
             if len(parts) > 1:
@@ -225,6 +258,7 @@ def main():
         # -------------------------
         # External command
         # -------------------------
+
         else:
 
             path = shutil.which(prog)
@@ -252,11 +286,17 @@ def main():
         # -------------------------
         # Close redirected files
         # -------------------------
+
         if output_file:
             output.close()
 
         if error_file:
             error_output.close()
+
+
+if __name__ == "__main__":
+    main()
+
 
 
 if __name__ == "__main__":
