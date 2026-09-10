@@ -88,9 +88,7 @@ def main():
         output_mode = "w"
         error_mode = "w"
 
-        # -------------------------
         # Output redirection
-        # -------------------------
 
         if ">>" in parts:
             redirect_index = parts.index(">>")
@@ -116,9 +114,7 @@ def main():
             output_mode = "w"
             parts = parts[:redirect_index]
 
-        # -------------------------
         # Error redirection
-        # -------------------------
 
         if "2>>" in parts:
             redirect_index = parts.index("2>>")
@@ -137,27 +133,21 @@ def main():
 
         prog = parts[0]
 
-        # -------------------------
         # Open stdout
-        # -------------------------
 
         if output_file:
             output = open(output_file, output_mode)
         else:
             output = sys.stdout
 
-        # -------------------------
         # Open stderr
-        # -------------------------
 
         if error_file:
             error_output = open(error_file, error_mode)
         else:
             error_output = sys.stderr
 
-        # -------------------------
         # pwd
-        # -------------------------
 
         if prog == "pwd":
 
@@ -166,9 +156,7 @@ def main():
                 file=output
             )
 
-        # -------------------------
         # exit
-        # -------------------------
 
         elif prog == "exit":
 
@@ -180,9 +168,7 @@ def main():
 
             break
 
-        # -------------------------
         # echo
-        # -------------------------
 
         elif prog == "echo":
 
@@ -191,9 +177,7 @@ def main():
                 file=output
             )
 
-        # -------------------------
         # cd
-        # -------------------------
 
         elif prog == "cd":
 
@@ -202,7 +186,6 @@ def main():
 
                 if target_path == "~":
                     target_path = os.getenv("HOME")
-
             else:
                 target_path = os.getenv("HOME")
 
@@ -224,9 +207,7 @@ def main():
                     file=error_output
                 )
 
-        # -------------------------
         # type
-        # -------------------------
 
         elif prog == "type":
 
@@ -255,9 +236,7 @@ def main():
                         file=error_output
                     )
 
-        # -------------------------
         # External command
-        # -------------------------
 
         else:
 
@@ -272,8 +251,6 @@ def main():
 
             else:
 
-                sys.stdout.flush()
-
                 subprocess.run(
                     parts,
                     executable=path,
@@ -281,22 +258,13 @@ def main():
                     stderr=error_output
                 )
 
-                sys.stdout.flush()
-
-        # -------------------------
         # Close redirected files
-        # -------------------------
 
         if output_file:
             output.close()
 
         if error_file:
             error_output.close()
-
-
-if __name__ == "__main__":
-    main()
-
 
 
 if __name__ == "__main__":
