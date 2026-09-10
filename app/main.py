@@ -4,7 +4,7 @@ import os
 import sys
 import shutil
 import subprocess
-from subprocess import run
+
 
 def parse_argument(cmd_string):
 
@@ -20,38 +20,29 @@ def parse_argument(cmd_string):
 
         char = cmd_string[i]
 
-        # Backslash outside quotes
         if char == "\\" and not in_single_quote and not in_double_quote:
             if i + 1 < len(cmd_string):
                 current_args += cmd_string[i + 1]
                 i += 2
                 continue
 
-        # Backslash inside double quotes
         elif char == "\\" and in_double_quote:
             if i + 1 < len(cmd_string):
                 next_char = cmd_string[i + 1]
-
-                # Inside double quotes, only \ and " are escaped
                 if next_char == "\\" or next_char == '"':
                     current_args += next_char
                     i += 2
                     continue
-
-                # Otherwise, keep the backslash literally
                 current_args += char
                 i += 1
                 continue
 
-        # Single quote
         if char == "'" and not in_double_quote:
             in_single_quote = not in_single_quote
 
-        # Double quote
         elif char == '"' and not in_single_quote:
             in_double_quote = not in_double_quote
 
-        # Space outside quotes
         elif char == " " and not in_single_quote and not in_double_quote:
             if current_args:
                 args.append(current_args)
@@ -66,6 +57,7 @@ def parse_argument(cmd_string):
         args.append(current_args)
 
     return args
+
 
 def main():
 
@@ -84,46 +76,63 @@ def main():
 
         output_file = None
         error_file = None
-
         output_mode = "w"
         error_mode = "w"
 
-        # Output redirection
-
+        # ---- Output redirection ----
+        # FIX #1: every branch now checks there's actually a filename
+        # after the operator, instead of assuming parts[redirect_index + 1] exists.
         if ">>" in parts:
             redirect_index = parts.index(">>")
+            if redirect_index + 1 >= len(parts):
+                print("syntax error: expected filename after '>>'", file=sys.stderr)
+                continue
             output_file = parts[redirect_index + 1]
             output_mode = "a"
             parts = parts[:redirect_index]
 
         elif "1>>" in parts:
             redirect_index = parts.index("1>>")
+            if redirect_index + 1 >= len(parts):
+                print("syntax error: expected filename after '1>>'", file=sys.stderr)
+                continue
             output_file = parts[redirect_index + 1]
             output_mode = "a"
             parts = parts[:redirect_index]
 
         elif ">" in parts:
             redirect_index = parts.index(">")
+            if redirect_index + 1 >= len(parts):
+                print("syntax error: expected filename after '>'", file=sys.stderr)
+                continue
             output_file = parts[redirect_index + 1]
             output_mode = "w"
             parts = parts[:redirect_index]
 
         elif "1>" in parts:
             redirect_index = parts.index("1>")
+            if redirect_index + 1 >= len(parts):
+                print("syntax error: expected filename after '1>'", file=sys.stderr)
+                continue
             output_file = parts[redirect_index + 1]
             output_mode = "w"
             parts = parts[:redirect_index]
 
-        # Error redirection
-
+        # ---- Error redirection ----
         if "2>>" in parts:
             redirect_index = parts.index("2>>")
+            if redirect_index + 1 >= len(parts):
+                print("syntax error: expected filename after '2>>'", file=sys.stderr)
+                continue
             error_file = parts[redirect_index + 1]
             error_mode = "a"
             parts = parts[:redirect_index]
 
         elif "2>" in parts:
             redirect_index = parts.index("2>")
+            if redirect_index + 1 >= len(parts):
+                print("syntax error: expected filename after '2>'", file=sys.stderr)
+                continue
             error_file = parts[redirect_index + 1]
             error_mode = "w"
             parts = parts[:redirect_index]
@@ -133,139 +142,82 @@ def main():
 
         prog = parts[0]
 
-        # Open stdout
-
+        # ---- Open stdout ----
+        # FIX #2: open() can raise (bad permissions, missing dir, etc) —
+        # catch it instead of letting it crash the whole shell.
         if output_file:
-            output = open(output_file, output_mode)
+            try:
+                output = open(output_file, output_mode)
+            except OSError as e:
+                print(f"{output_file}: {e.strerror.lower()}", file=sys.stderr)
+                continue
         else:
             output = sys.stdout
 
-        # Open stderr
-
+        # ---- Open stderr ----
         if error_file:
-            error_output = open(error_file, error_mode)
+            try:
+                error_output = open(error_file, error_mode)
+            except OSError as e:
+                print(f"{error_file}: {e.strerror.lower()}", file=sys.stderr)
+                if output_file:
+                    output.close()
+                continue
         else:
             error_output = sys.stderr
 
-        # pwd
+        # FIX #4: try/finally guarantees these files close even if a builtin
+        # or subprocess.run() throws partway through.
+        try:
 
-        if prog == "pwd":
+            if prog == "pwd":
+                print(os.getcwd(), file=output)
 
-            print(
-                os.getcwd(),
-                file=output
-            )
+            elif prog == "exit":
+                break
 
-        # exit
+            elif prog == "echo":
+                print(" ".join(parts[1:]), file=output)
 
-        elif prog == "exit":
+            elif prog == "cd":
+                if len(parts) > 1:
+                    target_path = parts[1]
+                    if target_path == "~":
+                        target_path = os.getenv("HOME")
+                else:
+                    target_path = os.getenv("HOME")
 
+                try:
+                    os.chdir(target_path)
+                # FIX #3: was two identical except blocks — merged into one.
+                # (added PermissionError/NotADirectoryError since those are
+                # realistic cd failures too, same message for now)
+                except (FileNotFoundError, TypeError, NotADirectoryError, PermissionError):
+                    print(f"cd: {target_path}: No such file or directory", file=error_output)
+
+            elif prog == "type":
+                if len(parts) > 1:
+                    subject = parts[1]
+                    if subject in built_in_commands:
+                        print(f"{subject} is a shell builtin", file=output)
+                    elif path := shutil.which(subject):
+                        print(f"{subject} is {path}", file=output)
+                    else:
+                        print(f"{subject}: not found", file=error_output)
+
+            else:
+                path = shutil.which(prog)
+                if not path:
+                    print(f"{prog}: command not found", file=error_output)
+                else:
+                    subprocess.run(parts, executable=path, stdout=output, stderr=error_output)
+
+        finally:
             if output_file:
                 output.close()
-
             if error_file:
                 error_output.close()
 
-            break
-
-        # echo
-
-        elif prog == "echo":
-
-            print(
-                " ".join(parts[1:]),
-                file=output
-            )
-
-        # cd
-
-        elif prog == "cd":
-
-            if len(parts) > 1:
-                target_path = parts[1]
-
-                if target_path == "~":
-                    target_path = os.getenv("HOME")
-            else:
-                target_path = os.getenv("HOME")
-
-            try:
-
-                os.chdir(target_path)
-
-            except (FileNotFoundError, TypeError):
-
-                print(
-                    f"cd: {target_path}: No such file or directory",
-                    file=error_output
-                )
-
-            except Exception:
-
-                print(
-                    f"cd: {target_path}: No such file or directory",
-                    file=error_output
-                )
-
-        # type
-
-        elif prog == "type":
-
-            if len(parts) > 1:
-
-                subject = parts[1]
-
-                if subject in built_in_commands:
-
-                    print(
-                        f"{subject} is a shell builtin",
-                        file=output
-                    )
-
-                elif path := shutil.which(subject):
-
-                    print(
-                        f"{subject} is {path}",
-                        file=output
-                    )
-
-                else:
-
-                    print(
-                        f"{subject}: not found",
-                        file=error_output
-                    )
-
-        # External command
-
-        else:
-
-            path = shutil.which(prog)
-
-            if not path:
-
-                print(
-                    f"{prog}: command not found",
-                    file=error_output
-                )
-
-            else:
-
-                subprocess.run(
-                    parts,
-                    executable=path,
-                    stdout=output,
-                    stderr=error_output
-                )
-
-        # Close redirected files
-
-        if output_file:
-            output.close()
-
-        if error_file:
-            error_output.close()
-
 
 if __name__ == "__main__":
-     main()
+    main()
